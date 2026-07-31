@@ -1,11 +1,25 @@
 services:
-  anki-map-customizer:
+  customankimaps:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: anki_map_customizer
-    ports:
-      - "8000:8000"
+    container_name: customankimaps
+    restart: always
     environment:
       - PORT=8000
-    restart: unless-stopped
+      - UMAMI_SCRIPT_URL=${UMAMI_SCRIPT_URL:-https://analytics.beclay.fr/script.js}
+      - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      # Remplacez custommaps.beclay.fr par votre domaine/sous-domaine souhaité
+      - "traefik.http.routers.customankimaps.rule=Host(`custommaps.beclay.fr`)"
+      - "traefik.http.routers.customankimaps.entrypoints=websecure"
+      - "traefik.http.routers.customankimaps.tls.certresolver=le"
+      # FastAPI écoute sur le port 8000 dans le conteneur
+      - "traefik.http.services.customankimaps.loadbalancer.server.port=8000"
+
+networks:
+  web:
+    external: true

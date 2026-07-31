@@ -210,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
           state.colors = { ...PRESETS[pKey] };
           syncPickersUI();
           updatePreview();
+          if (window.umami) umami.track('select-preset', { preset: pKey });
         }
       });
     });
@@ -492,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+        if (window.umami) umami.track('download-apkg');
       }
     } catch (err) {
       alert('Erreur lors de la génération : ' + err.message);

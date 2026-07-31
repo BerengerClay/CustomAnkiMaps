@@ -35,7 +35,16 @@ async def get_index():
     index_path = os.path.join(static_dir, "index.html")
     if os.path.exists(index_path):
         with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+            html = f.read()
+
+        script_url = os.environ.get("UMAMI_SCRIPT_URL", "https://analytics.beclay.fr/script.js")
+        website_id = os.environ.get("UMAMI_WEBSITE_ID", "")
+
+        if website_id and "</head>" in html:
+            umami_tag = f'<script defer src="{script_url}" data-website-id="{website_id}"></script>'
+            html = html.replace("</head>", f"  {umami_tag}\n</head>")
+
+        return HTMLResponse(content=html)
     return HTMLResponse(content="<h1>Anki Customizer</h1><p>Index page loading...</p>")
 
 @app.get("/api/defaults")
