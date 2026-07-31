@@ -37,12 +37,15 @@ async def get_index():
         with open(index_path, "r", encoding="utf-8") as f:
             html = f.read()
 
-        script_url = os.environ.get("UMAMI_SCRIPT_URL", "https://analytics.beclay.fr/script.js")
-        website_id = os.environ.get("UMAMI_WEBSITE_ID", "")
+        script_url = os.environ.get("UMAMI_SCRIPT_URL", "https://analytics.beclay.fr/script.js").strip()
+        website_id = os.environ.get("UMAMI_WEBSITE_ID", "").strip()
 
-        if website_id and "</head>" in html:
+        if website_id:
             umami_tag = f'<script defer src="{script_url}" data-website-id="{website_id}"></script>'
-            html = html.replace("</head>", f"  {umami_tag}\n</head>")
+            if "</head>" in html:
+                html = html.replace("</head>", f"  {umami_tag}\n</head>")
+            elif "</HEAD>" in html:
+                html = html.replace("</HEAD>", f"  {umami_tag}\n</HEAD>")
 
         return HTMLResponse(content=html)
     return HTMLResponse(content="<h1>Anki Customizer</h1><p>Index page loading...</p>")
