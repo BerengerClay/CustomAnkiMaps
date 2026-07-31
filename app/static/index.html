@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anki Map Customizer - Studio de Personnalisation de Cartes</title>
+  <meta name="description" content="Personnalisez facilement les couleurs des cartes SVG de votre paquet Anki GeoQuiz en direct et téléchargez votre fichier .apkg sur mesure.">  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="background-glow glow-1"></div>
+  <div class="background-glow glow-2"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="main-header glass-card">
+      <div class="header-brand">
+        <div class="logo-icon"><i data-lucide="map"></i></div>
+        <div>
+          <h1>Anki Map Customizer</h1>
+          <p class="subtitle">Personnalisation en direct du paquet <code>GeoQuiz.apkg</code></p>
+        </div>
+      </div>
+      <div class="header-badge">
+        <span class="pulse-dot"></span> 1 768 cartes SVG modifiables
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace-grid">
+      <!-- Left Column: Controls & Presets (Compact Sidebar) -->
+      <aside class="controls-panel glass-card">
+        <div class="panel-section">
+          <h2><span class="icon"><i data-lucide="palette"></i></span> Palettes Thématiques</h2>
+          <div class="presets-grid">
+            <button class="preset-btn active" data-preset="anki">
+              <span class="preset-name">Classique Anki</span>
+              <div class="preset-swatches"></div>
+            </button>
+
+            <button class="preset-btn" data-preset="modern_light">
+              <span class="preset-name">Moderne Clair</span>
+              <div class="preset-swatches"></div>
+            </button>
+
+            <button class="preset-btn" data-preset="dark_pro">
+              <span class="preset-name">Dark Mode Pro</span>
+              <div class="preset-swatches"></div>
+            </button>
+
+            <button class="preset-btn" data-preset="vintage_atlas">
+              <span class="preset-name">Atlas Historique</span>
+              <div class="preset-swatches"></div>
+            </button>
+
+            <button class="preset-btn" data-preset="high_contrast">
+              <span class="preset-name">Haute Lisibilité</span>
+              <div class="preset-swatches"></div>
+            </button>
+
+            <button class="preset-btn" data-preset="minimalist">
+              <span class="preset-name">Minimaliste</span>
+              <div class="preset-swatches"></div>
+            </button>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="panel-section">
+          <h2><span class="icon"><i data-lucide="sliders"></i></span> Couleurs Carte</h2>
+          <div class="color-pickers-list">
+            <!-- 1. Water / Background -->
+            <div class="color-picker-item">
+              <div class="picker-label">
+                <span class="label-title">Couleur de l'Eau</span>
+              </div>
+              <div class="picker-input-wrap">
+                <input type="color" id="picker-water" value="#FFFFFF">
+                <input type="text" id="hex-water" value="#FFFFFF" maxlength="7">
+              </div>
+            </div>
+
+            <!-- 2. Other Non-selected Countries -->
+            <div class="color-picker-item">
+              <div class="picker-label">
+                <span class="label-title">Autres Pays (Cartes)</span>
+              </div>
+              <div class="picker-input-wrap">
+                <input type="color" id="picker-other_countries" value="#CCCCCC">
+                <input type="text" id="hex-other_countries" value="#CCCCCC" maxlength="7">
+              </div>
+            </div>
+
+            <!-- 3. Country Borders -->
+            <div class="color-picker-item">
+              <div class="picker-label">
+                <span class="label-title">Frontières des Pays</span>
+              </div>
+              <div class="picker-input-wrap">
+                <input type="color" id="picker-country_borders" value="#FFFFFF">
+                <input type="text" id="hex-country_borders" value="#FFFFFF" maxlength="7">
+              </div>
+            </div>
+
+            <!-- 3. Target Country Highlight -->
+            <div class="color-picker-item">
+              <div class="picker-label">
+                <span class="label-title">Pays Sélectionné (Cartes)</span>
+              </div>
+              <div class="picker-input-wrap">
+                <input type="color" id="picker-target_country" value="#59A353">
+                <input type="text" id="hex-target_country" value="#59A353" maxlength="7">
+              </div>
+            </div>
+
+            <!-- 4. Silhouette Shape Color -->
+            <div class="color-picker-item">
+              <div class="picker-label">
+                <span class="label-title">Couleur de la Silhouette</span>
+              </div>
+              <div class="picker-input-wrap">
+                <input type="color" id="picker-silhouette" value="#9CA3AF">
+                <input type="text" id="hex-silhouette" value="#9CA3AF" maxlength="7">
+              </div>
+            </div>
+
+            <!-- 5. Capital Pin on Maps -->
+            <div class="color-picker-item">
+              <div class="picker-label">
+                <span class="label-title">Capitale (Cartes)</span>
+              </div>
+              <div class="picker-input-wrap">
+                <input type="color" id="picker-capital_map" value="#D95F5F">
+                <input type="text" id="hex-capital_map" value="#D95F5F" maxlength="7">
+              </div>
+            </div>
+
+            <!-- 6. Capital Pin on Silhouettes -->
+            <div class="color-picker-item">
+              <div class="picker-label">
+                <span class="label-title">Capitale (Silhouettes)</span>
+              </div>
+              <div class="picker-input-wrap">
+                <input type="color" id="picker-capital_silhouette" value="#D95F5F">
+                <input type="text" id="hex-capital_silhouette" value="#D95F5F" maxlength="7">
+              </div>
+            </div>
+
+            <!-- 7. Grid Lines on Maps -->
+            <div class="color-picker-item">
+              <div class="picker-label">
+                <span class="label-title">Lignes de Quadrillage</span>
+              </div>
+              <div class="picker-input-wrap">
+                <input type="color" id="picker-grid_lines" value="#D8D8D8">
+                <input type="text" id="hex-grid_lines" value="#D8D8D8" maxlength="7">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download Action Card -->
+        <div class="download-box glass-card">
+          <button id="download-btn" class="primary-btn pulse-glow">
+            <span class="btn-icon"><i data-lucide="zap"></i></span>
+            <span>Télécharger (.apkg)</span>
+          </button>
+          <p class="download-note">Export direct des 1 768 cartes</p>
+        </div>
+      </aside>
+
+      <!-- Right Column: Live Preview Studio (Takes Center Stage) -->
+      <section class="preview-panel glass-card">
+        <div class="preview-top-bar">
+          <div class="country-select-wrap">
+            <label for="country-select" class="country-select-label">
+              <span class="icon"><i data-lucide="map-pin"></i></span> Pays :
+            </label>
+            <select id="country-select" class="country-select-dropdown">
+              <option value="">Chargement des 367 pays...</option>
+            </select>
+            <button id="random-country-btn" class="secondary-btn icon-btn" title="Choisir un pays au hasard">
+              <i data-lucide="shuffle"></i> Aléatoire
+            </button>
+          </div>
+        </div>
+
+        <!-- Map Category Tabs -->
+        <div class="sample-tabs" id="sample-tabs">
+          <button class="tab-btn active" data-tab="globe"><i data-lucide="globe"></i> Vue Globe</button>
+          <button class="tab-btn" data-tab="zoomed"><i data-lucide="zoom-in"></i> Vue Zoomée</button>
+          <button class="tab-btn" data-tab="silhouette"><i data-lucide="user"></i> Silhouette</button>
+          <button class="tab-btn" data-tab="capitale"><i data-lucide="landmark"></i> Silhouette + Capitale</button>
+        </div>
+
+        <!-- Interactive Canvas Viewport (Spacious Canvas) -->
+        <div class="viewport-stage-wrap">
+          <div id="loading-spinner" class="spinner-overlay">
+            <div class="spinner"></div>
+            <p>Chargement des cartes...</p>
+          </div>
+
+          <div id="preview-stage" class="preview-stage hidden">
+            <!-- Customized View -->
+            <div class="map-view-card" id="custom-map-card">
+              <div class="svg-container" id="svg-custom-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Map Info Footer -->
+        <div class="preview-footer">
+          <div class="map-info">
+            <span id="sample-name" class="map-filename">FXX_globe.svg</span>
+            <span id="sample-desc" class="map-desc">Carte de la Terre avec France mise en valeur</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <p>Anki Map Customizer &bull; Traitement direct de <code>GeoQuiz.apkg</code></p>
+    </footer>
+  </div>
+
+  <!-- Loading Modal during generation -->
+  <div id="gen-modal" class="modal-overlay hidden">
+    <div class="modal-card glass-card">
+      <div class="modal-spinner"></div>
+      <h3>Création de votre paquet Anki...</h3>
+      <p id="modal-status">Décompression et modification des cartes SVG en cours</p>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

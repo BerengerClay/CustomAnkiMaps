@@ -1,0 +1,11 @@
+services:
+  anki-map-customizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: anki_map_customizer
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
