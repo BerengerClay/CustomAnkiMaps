@@ -37,7 +37,7 @@ async def get_index():
         with open(index_path, "r", encoding="utf-8") as f:
             html = f.read()
 
-        script_url = os.environ.get("UMAMI_SCRIPT_URL", "https://analytics.beclay.fr/script.js").strip()
+        script_url = os.environ.get("UMAMI_SCRIPT_URL", "https://stats.beclay.fr/script.js").strip()
         website_id = os.environ.get("UMAMI_WEBSITE_ID", "").strip()
 
         if website_id:
