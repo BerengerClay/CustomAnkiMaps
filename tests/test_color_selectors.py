@@ -1,12 +1,6 @@
 import os
-import unittest
-
+import pytest
 from app.apkg_processor import APKGProcessor, DEFAULT_COLOR_PALETTE, apply_color_transform
-
-try:
-    import pytest
-except ImportError:
-    pytest = None
 
 SNAPSHOTS_DIR = os.path.join(os.path.dirname(__file__), "snapshots")
 os.makedirs(SNAPSHOTS_DIR, exist_ok=True)
@@ -69,15 +63,23 @@ COLOR_TEST_SPECS = [
         "tab": "globe"
     },
     {
-        "key": "zee_border",
-        "label": "Frontières Maritimes ZEE",
+        "key": "zee_map",
+        "label": "Frontières Maritimes ZEE (Cartes)",
         "test_color": "#FFFF00",  # Yellow
         "country": "CPV",
         "tab": "globe"
+    },
+    {
+        "key": "zee_silhouette",
+        "label": "Frontières Maritimes ZEE (Silhouettes)",
+        "test_color": "#00FFCC",  # Cyan
+        "country": "CPV",
+        "tab": "silhouette"
     }
 ]
 
-def get_processor():
+@pytest.fixture(scope="module")
+def processor():
     apkg_path = os.environ.get("APKG_PATH", "GeoQuiz.apkg")
     if not os.path.exists(apkg_path):
         alt_path = os.path.join(os.path.dirname(__file__), "..", "GeoQuiz.apkg")
@@ -85,7 +87,8 @@ def get_processor():
             apkg_path = alt_path
     return APKGProcessor(apkg_path)
 
-def run_selector_snapshot_test(processor, spec):
+@pytest.mark.parametrize("spec", COLOR_TEST_SPECS, ids=lambda s: s["key"])
+def test_color_selectors(processor, spec):
     key = spec["key"]
     test_color = spec["test_color"]
     country = spec["country"]
@@ -98,10 +101,8 @@ def run_selector_snapshot_test(processor, spec):
     is_sil = (tab in ['silhouette', 'capitale'])
     actual_svg = apply_color_transform(sample['svg'], test_colors, is_silhouette=is_sil)
 
-    # 1. Test color must be present in actual SVG
     assert test_color.upper() in actual_svg.upper(), f"Test color {test_color} for '{key}' not found in transformed SVG!"
 
-    # 2. SVG snapshot comparison
     snapshot_path = os.path.join(SNAPSHOTS_DIR, f"test_{key}.svg")
     update_snapshots = os.environ.get("UPDATE_SNAPSHOTS", "").lower() in ("1", "true", "yes")
 
@@ -114,30 +115,5 @@ def run_selector_snapshot_test(processor, spec):
 
     assert actual_svg == expected_svg, (
         f"Snapshot mismatch for '{key}'!\n"
-        f"Actual generated SVG does not match reference SVG snapshot '{snapshot_path}'.\n"
-        f"Set UPDATE_SNAPSHOTS=1 to update reference SVG snapshots if changes were intentional."
+        f"Actual generated SVG does not match reference SVG snapshot '{snapshot_path}'."
     )
-
-# Pytest integration (when running with pytest or uv run pytest)
-if pytest:
-    @pytest.fixture(scope="module")
-    def processor_fixture():
-        return get_processor()
-
-    @pytest.mark.parametrize("spec", COLOR_TEST_SPECS, ids=lambda s: s["key"])
-    def test_color_selectors_pytest(processor_fixture, spec):
-        run_selector_snapshot_test(processor_fixture, spec)
-
-# Unittest integration (when running with python -m unittest)
-class TestColorSelectorsUnittest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.processor = get_processor()
-
-    def test_all_selectors(self):
-        for spec in COLOR_TEST_SPECS:
-            with self.subTest(selector=spec["key"]):
-                run_selector_snapshot_test(self.processor, spec)
-
-if __name__ == '__main__':
-    unittest.main()

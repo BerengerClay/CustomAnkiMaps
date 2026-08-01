@@ -37,7 +37,9 @@ ORIGINAL_SVG_COLORS = {
     "capital_map": ["#D95F5F", "#d95f5f"],                       # Couleur originale de la capitale (Vues cartes)
     "capital_silhouette": ["#D95F5F", "#d95f5f"],                # Couleur originale de l'épingle capitale (Vues silhouettes)
     "grid_lines": ["#D8D8D8", "#d8d8d8"],                        # Couleur originale des lignes de quadrillage
-    "zee_border": ["#D95F5F", "#d95f5f"]                         # Couleur originale des frontières ZEE (Zone Économique Exclusive)
+    "zee_map": ["#D95F5F", "#d95f5f"],                           # Couleur originale des frontières ZEE (Vues cartes)
+    "zee_silhouette": ["#D95F5F", "#d95f5f"],                    # Couleur originale des frontières ZEE (Vues silhouettes)
+    "zee_border": ["#D95F5F", "#d95f5f"]                         # Rétrocompatibilité
 }
 
 # Couleurs par défaut proposées dans l'interface web (Classique Anki)
@@ -50,7 +52,9 @@ DEFAULT_COLOR_PALETTE = {
     "capital_map": "#000000",        # Capitale (cartes)
     "capital_silhouette": "#000000", # Capitale (silhouettes)
     "grid_lines": "#D8D8D8",         # Lignes de quadrillage (cartes)
-    "zee_border": "#D95F5F"          # Frontières maritimes (ZEE)
+    "zee_map": "#D95F5F",            # Frontières maritimes ZEE (cartes)
+    "zee_silhouette": "#D95F5F",     # Frontières maritimes ZEE (silhouettes)
+    "zee_border": "#D95F5F"          # Rétrocompatibilité
 }
 
 def ensure_svg_viewbox(svg_text: str) -> str:
@@ -101,9 +105,11 @@ def apply_color_transform(svg_text: str, colors: Dict[str, str], is_silhouette: 
         pattern = re.compile(rf'stop-color=[\"\']{re.escape(g_code)}[\"\']', re.IGNORECASE)
         svg_out = pattern.sub(f'stop-color="{target_val}"', svg_out)
 
-    # 3. ZEE / Maritime Exclusive Economic Zone borders replacement (#D95F5F -> zee_border)
-    zee_val = colors.get("zee_border", DEFAULT_COLOR_PALETTE.get("zee_border", "#D95F5F")).upper()
-    for z_code in ORIGINAL_SVG_COLORS["zee_border"]:
+    # 3. ZEE / Maritime Exclusive Economic Zone borders replacement
+    zee_key = "zee_silhouette" if is_silhouette else "zee_map"
+    zee_val = colors.get(zee_key, colors.get("zee_border", DEFAULT_COLOR_PALETTE.get(zee_key, "#D95F5F"))).upper()
+    zee_codes = ORIGINAL_SVG_COLORS.get(zee_key, ORIGINAL_SVG_COLORS["zee_border"])
+    for z_code in zee_codes:
         pattern = re.compile(re.escape(z_code), re.IGNORECASE)
         svg_out = pattern.sub(zee_val, svg_out)
 

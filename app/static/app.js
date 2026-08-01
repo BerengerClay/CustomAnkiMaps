@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
       capital_map: '#000000',
       capital_silhouette: '#000000',
       grid_lines: '#D8D8D8',
+      zee_map: '#D95F5F',
+      zee_silhouette: '#D95F5F',
       zee_border: '#D95F5F'
     },
     modern_light: {
@@ -21,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
       capital_map: '#EF4444',     // Rouge vif pour trancher avec le bleu
       capital_silhouette: '#EF4444', 
       grid_lines: '#DCE7F0',      // Quadrillage à peine visible
+      zee_map: '#EF4444',
+      zee_silhouette: '#EF4444',
       zee_border: '#EF4444'
     },
     dark_pro: {
@@ -32,6 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
       capital_map: '#FBBF24',     // Jaune ambre (très lisible sur fond sombre)
       capital_silhouette: '#FBBF24',
       grid_lines: '#334155',      // Quadrillage discret
+      zee_map: '#FBBF24',
+      zee_silhouette: '#FBBF24',
       zee_border: '#FBBF24'
     },
     vintage_atlas: {
@@ -43,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
       capital_map: '#1E293B',     // Encre bleu marine profond
       capital_silhouette: '#1E293B',
       grid_lines: '#E3D7C1',      // Lignes beiges
+      zee_map: '#CD5C5C',
+      zee_silhouette: '#CD5C5C',
       zee_border: '#CD5C5C'
     },
     high_contrast: {
@@ -54,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
       capital_map: '#DC3220',     // Rouge "Safe" (contraste parfait avec le bleu)
       capital_silhouette: '#DC3220',
       grid_lines: '#EEEEEE',
+      zee_map: '#DC3220',
+      zee_silhouette: '#DC3220',
       zee_border: '#DC3220'
     },
     minimalist: {
@@ -65,6 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
       capital_map: '#F43F5E',     // Rose/Rouge (contraste parfait avec le vert émeraude)
       capital_silhouette: '#F43F5E',
       grid_lines: '#F0F0F0',
+      zee_map: '#F43F5E',
+      zee_silhouette: '#F43F5E',
       zee_border: '#F43F5E'
     }
   };
@@ -81,6 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
       capital_map: ["#D95F5F", "#d95f5f"],
       capital_silhouette: ["#D95F5F", "#d95f5f"],
       grid_lines: ["#D8D8D8", "#d8d8d8"],
+      zee_map: ["#D95F5F", "#d95f5f"],
+      zee_silhouette: ["#D95F5F", "#d95f5f"],
       zee_border: ["#D95F5F", "#d95f5f"]
     },
     countries: [],
@@ -89,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activeTab: 'globe'
   };
 
-  // DOM Elements for 9 color pickers
+  // DOM Elements for 10 color pickers
   const pickers = {
     water: { picker: document.getElementById('picker-water'), hex: document.getElementById('hex-water') },
     other_countries: { picker: document.getElementById('picker-other_countries'), hex: document.getElementById('hex-other_countries') },
@@ -99,7 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
     capital_map: { picker: document.getElementById('picker-capital_map'), hex: document.getElementById('hex-capital_map') },
     capital_silhouette: { picker: document.getElementById('picker-capital_silhouette'), hex: document.getElementById('hex-capital_silhouette') },
     grid_lines: { picker: document.getElementById('picker-grid_lines'), hex: document.getElementById('hex-grid_lines') },
-    zee_border: { picker: document.getElementById('picker-zee_border'), hex: document.getElementById('hex-zee_border') }
+    zee_map: { picker: document.getElementById('picker-zee_map'), hex: document.getElementById('hex-zee_map') },
+    zee_silhouette: { picker: document.getElementById('picker-zee_silhouette'), hex: document.getElementById('hex-zee_silhouette') }
   };
 
   const countrySelect = document.getElementById('country-select');
@@ -363,7 +378,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const capitalSilhouette = state.colors.capital_silhouette || PRESETS.anki.capital_silhouette;
 
     const gridLines = state.colors.grid_lines || PRESETS.anki.grid_lines;
-    const zeeBorder = state.colors.zee_border || PRESETS.anki.zee_border;
+    const zeeMap = state.colors.zee_map || state.colors.zee_border || PRESETS.anki.zee_map;
+    const zeeSilhouette = state.colors.zee_silhouette || state.colors.zee_border || PRESETS.anki.zee_silhouette;
+    const zeeVal = isSilhouetteTab ? zeeSilhouette : zeeMap;
 
     // 1. Capital pin marker replacement (<path transform="translate..." ...>)
     const capVal = isSilhouetteTab ? capitalSilhouette : capitalMap;
@@ -383,11 +400,11 @@ document.addEventListener('DOMContentLoaded', () => {
       customSvg = customSvg.replace(re, `stop-color="${targetCountry}"`);
     });
 
-    // 3. ZEE / Maritime Exclusive Economic Zone borders replacement (#D95F5F -> zeeBorder)
-    const origZeeList = state.originalColors.zee_border || ["#D95F5F", "#d95f5f"];
+    // 3. ZEE / Maritime Exclusive Economic Zone borders replacement
+    const origZeeList = state.originalColors.zee_map || state.originalColors.zee_border || ["#D95F5F", "#d95f5f"];
     origZeeList.forEach(zCode => {
       const re = new RegExp(escapeRegex(zCode), 'gi');
-      customSvg = customSvg.replace(re, zeeBorder);
+      customSvg = customSvg.replace(re, zeeVal);
     });
 
     // 4. Water / Ocean background replacement
