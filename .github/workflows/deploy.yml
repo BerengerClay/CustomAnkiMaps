@@ -44,6 +44,7 @@ jobs:
             mkdir -p /opt/customankimaps
             cd /opt/customankimaps
             curl -sSL https://raw.githubusercontent.com/beclay-vps/CustomAnkiMaps/main/docker-compose.yml -o docker-compose.yml
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
