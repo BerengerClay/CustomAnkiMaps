@@ -1,3 +1,4 @@
+import hashlib
 import io
 import os
 import re
@@ -157,6 +158,17 @@ def apply_color_transform(svg_text: str, colors: Dict[str, str], is_silhouette: 
 
     return svg_out
 
+def get_palette_hash(colors: Dict[str, str]) -> str:
+    """Generate a deterministic 8-character hex hash from the active color palette."""
+    sorted_pairs = sorted((k, str(v).upper().strip()) for k, v in colors.items())
+    hash_str = "_".join(f"{k}:{v}" for k, v in sorted_pairs)
+    return hashlib.md5(hash_str.encode('utf-8')).hexdigest()[:8]
+
+def rename_svg_filename(fname: str, palette_hash: str) -> str:
+    """Rename an SVG media filename to append the unique palette hash."""
+    base = re.sub(r'_[0-9a-fA-F]{8}\.svg$', '.svg', fname, flags=re.IGNORECASE)
+    return re.sub(r'([A-Za-z0-9_\-]+)\.svg$', rf'\1_{palette_hash}.svg', base, flags=re.IGNORECASE)
+
 class APKGProcessor:
     def __init__(self, apkg_path: str):
         self.apkg_path = apkg_path
@@ -202,16 +214,18 @@ class APKGProcessor:
                         fields = flds.split('\x1f')
                         region = fields[11] if len(fields) > 11 else 'Autre'
 
-                        globe_m = re.search(r'([A-Za-z0-9_\-]*_globe\.svg)', flds)
-                        zoomed_m = re.search(r'([A-Za-z0-9_\-]*_zoomed\.svg)', flds)
-                        silhouette_m = re.search(r'([A-Za-z0-9_\-]*_silhouette\.svg)', flds)
-                        capitale_m = re.search(r'([A-Za-z0-9_\-]*_silhouette_capitale\.svg)', flds)
+                        globe_m = re.search(r'([A-Za-z0-9_\-]*_globe(?:_[0-9a-fA-F]{8})?\.svg)', flds)
+                        zoomed_m = re.search(r'([A-Za-z0-9_\-]*_zoomed(?:_[0-9a-fA-F]{8})?\.svg)', flds)
+                        silhouette_m = re.search(r'([A-Za-z0-9_\-]*_silhouette(?:_[0-9a-fA-F]{8})?\.svg)', flds)
+                        capitale_m = re.search(r'([A-Za-z0-9_\-]*_silhouette_capitale(?:_[0-9a-fA-F]{8})?\.svg)', flds)
 
                         code = ''
                         if globe_m:
-                            code = globe_m.group(1).replace('_globe.svg', '')
+                            raw_fn = re.sub(r'_[0-9a-fA-F]{8}\.svg$', '.svg', globe_m.group(1), flags=re.IGNORECASE)
+                            code = raw_fn.replace('_globe.svg', '')
                         elif zoomed_m:
-                            code = zoomed_m.group(1).replace('_zoomed.svg', '')
+                            raw_fn = re.sub(r'_[0-9a-fA-F]{8}\.svg$', '.svg', zoomed_m.group(1), flags=re.IGNORECASE)
+                            code = raw_fn.replace('_zoomed.svg', '')
 
                         sil_file = silhouette_m.group(1) if silhouette_m else None
                         if sil_file and 'capitale' in sil_file:
@@ -291,10 +305,13 @@ class APKGProcessor:
     def process_and_repack(self, color_map: Dict[str, str], progress_callback: Optional[Callable[[int, int], None]] = None) -> bytes:
         """
         Decompresses GeoQuiz.apkg, replaces colors in all SVG files according to color_map,
-        and repacks into a new .apkg zip file in memory using multi-threading.
+        renames media files with a palette hash to force Anki refresh, and repacks into a new .apkg zip file.
         """
         output_buffer = io.BytesIO()
         dctx = zstandard.ZstdDecompressor()
+        cctx = zstandard.ZstdCompressor()
+
+        palette_hash = get_palette_hash(color_map)
 
         with zipfile.ZipFile(self.apkg_path, 'r') as z_in:
             media_map = self._get_media_index(z_in, dctx)
@@ -303,6 +320,51 @@ class APKGProcessor:
             infolist = z_in.infolist()
             total_files = len(infolist)
             file_data = {item.filename: z_in.read(item.filename) for item in infolist}
+
+        # Build filename rename mapping (orig_filename -> hashed_filename)
+        rename_map = {
+            orig_f: rename_svg_filename(orig_f, palette_hash)
+            for orig_f in media_map.keys()
+            if orig_f.lower().endswith('.svg')
+        }
+
+        # 1. Update SQLite database collection.anki21b note fields with new hashed filenames
+        if 'collection.anki21b' in file_data:
+            try:
+                anki21_bytes = dctx.stream_reader(io.BytesIO(file_data['collection.anki21b'])).read()
+                with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as f:
+                    f.write(anki21_bytes)
+                    tmp_db_path = f.name
+
+                conn = sqlite3.connect(tmp_db_path)
+                cursor = conn.cursor()
+                for orig_f, new_f in rename_map.items():
+                    if orig_f != new_f:
+                        cursor.execute('UPDATE notes SET flds = replace(flds, ?, ?)', (orig_f, new_f))
+                conn.commit()
+                conn.close()
+
+                with open(tmp_db_path, 'rb') as f:
+                    new_db_bytes = f.read()
+
+                file_data['collection.anki21b'] = cctx.compress(new_db_bytes)
+            except Exception:
+                pass
+            finally:
+                if 'tmp_db_path' in locals() and os.path.exists(tmp_db_path):
+                    os.remove(tmp_db_path)
+
+        # 2. Update media index entry to map numeric IDs to new hashed filenames
+        if 'media' in file_data:
+            try:
+                media_bytes = dctx.stream_reader(io.BytesIO(file_data['media'])).read()
+                for orig_f, new_f in rename_map.items():
+                    if orig_f != new_f:
+                        media_bytes = media_bytes.replace(orig_f.encode('utf-8'), new_f.encode('utf-8'))
+                        media_bytes = media_bytes.replace(orig_f.encode('latin1'), new_f.encode('latin1'))
+                file_data['media'] = cctx.compress(media_bytes)
+            except Exception:
+                pass
 
         completed_count = 0
         lock = threading.Lock()
