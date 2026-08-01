@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
       silhouette: '#CCCCCC',
       capital_map: '#000000',
       capital_silhouette: '#000000',
-      grid_lines: '#D8D8D8'
+      grid_lines: '#D8D8D8',
+      zee_border: '#D95F5F'
     },
     modern_light: {
       water: '#E3F2FD',           // Bleu très doux
@@ -19,7 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
       silhouette: '#94A3B8',      // Gris bleuté pour la silhouette seule
       capital_map: '#EF4444',     // Rouge vif pour trancher avec le bleu
       capital_silhouette: '#EF4444', 
-      grid_lines: '#DCE7F0'       // Quadrillage à peine visible
+      grid_lines: '#DCE7F0',      // Quadrillage à peine visible
+      zee_border: '#EF4444'
     },
     dark_pro: {
       water: '#0F172A',           // Bleu ardoise très sombre
@@ -29,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
       silhouette: '#475569',      // Gris moyen
       capital_map: '#FBBF24',     // Jaune ambre (très lisible sur fond sombre)
       capital_silhouette: '#FBBF24',
-      grid_lines: '#334155'       // Quadrillage discret
+      grid_lines: '#334155',      // Quadrillage discret
+      zee_border: '#FBBF24'
     },
     vintage_atlas: {
       water: '#D4E3D5',           // Bleu-vert d'eau rétro
@@ -39,7 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
       silhouette: '#A89F91',      // Gris chaud
       capital_map: '#1E293B',     // Encre bleu marine profond
       capital_silhouette: '#1E293B',
-      grid_lines: '#E3D7C1'       // Lignes beiges
+      grid_lines: '#E3D7C1',      // Lignes beiges
+      zee_border: '#CD5C5C'
     },
     high_contrast: {
       water: '#FFFFFF',           // Blanc pur
@@ -49,7 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
       silhouette: '#757575',      // Gris foncé
       capital_map: '#DC3220',     // Rouge "Safe" (contraste parfait avec le bleu)
       capital_silhouette: '#DC3220',
-      grid_lines: '#EEEEEE'
+      grid_lines: '#EEEEEE',
+      zee_border: '#DC3220'
     },
     minimalist: {
       water: '#FAFAFA',           // Presque blanc
@@ -59,7 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
       silhouette: '#A3A3A3',      // Gris moyen
       capital_map: '#F43F5E',     // Rose/Rouge (contraste parfait avec le vert émeraude)
       capital_silhouette: '#F43F5E',
-      grid_lines: '#F0F0F0'
+      grid_lines: '#F0F0F0',
+      zee_border: '#F43F5E'
     }
   };
   
@@ -74,7 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
       silhouette: ["#9CA3AF", "#9ca3af"],
       capital_map: ["#D95F5F", "#d95f5f"],
       capital_silhouette: ["#D95F5F", "#d95f5f"],
-      grid_lines: ["#D8D8D8", "#d8d8d8"]
+      grid_lines: ["#D8D8D8", "#d8d8d8"],
+      zee_border: ["#D95F5F", "#d95f5f"]
     },
     countries: [],
     selectedCountry: 'FXX',
@@ -82,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activeTab: 'globe'
   };
 
-  // DOM Elements for 8 color pickers
+  // DOM Elements for 9 color pickers
   const pickers = {
     water: { picker: document.getElementById('picker-water'), hex: document.getElementById('hex-water') },
     other_countries: { picker: document.getElementById('picker-other_countries'), hex: document.getElementById('hex-other_countries') },
@@ -91,7 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
     silhouette: { picker: document.getElementById('picker-silhouette'), hex: document.getElementById('hex-silhouette') },
     capital_map: { picker: document.getElementById('picker-capital_map'), hex: document.getElementById('hex-capital_map') },
     capital_silhouette: { picker: document.getElementById('picker-capital_silhouette'), hex: document.getElementById('hex-capital_silhouette') },
-    grid_lines: { picker: document.getElementById('picker-grid_lines'), hex: document.getElementById('hex-grid_lines') }
+    grid_lines: { picker: document.getElementById('picker-grid_lines'), hex: document.getElementById('hex-grid_lines') },
+    zee_border: { picker: document.getElementById('picker-zee_border'), hex: document.getElementById('hex-zee_border') }
   };
 
   const countrySelect = document.getElementById('country-select');
@@ -355,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const capitalSilhouette = state.colors.capital_silhouette || PRESETS.anki.capital_silhouette;
 
     const gridLines = state.colors.grid_lines || PRESETS.anki.grid_lines;
+    const zeeBorder = state.colors.zee_border || PRESETS.anki.zee_border;
 
     // 1. Capital pin marker replacement (<path transform="translate..." ...>)
     const capVal = isSilhouetteTab ? capitalSilhouette : capitalMap;
@@ -367,7 +376,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Helper regex escape function
     const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    // 2. Water / Ocean background replacement
+    // 2. Target country glow gradient stop-color update (MUST happen before ZEE #D95F5F replacement)
+    const origCapList = state.originalColors.capital_map || ["#D95F5F"];
+    origCapList.forEach(gCode => {
+      const re = new RegExp(`stop-color=["']${escapeRegex(gCode)}["']`, 'gi');
+      customSvg = customSvg.replace(re, `stop-color="${targetCountry}"`);
+    });
+
+    // 3. ZEE / Maritime Exclusive Economic Zone borders replacement (#D95F5F -> zeeBorder)
+    const origZeeList = state.originalColors.zee_border || ["#D95F5F", "#d95f5f"];
+    origZeeList.forEach(zCode => {
+      const re = new RegExp(escapeRegex(zCode), 'gi');
+      customSvg = customSvg.replace(re, zeeBorder);
+    });
+
+    // 4. Water / Ocean background replacement
     const origWaterList = state.originalColors.water || ["#FFFFFF", "#FFF"];
     origWaterList.forEach(wCode => {
       const re = new RegExp(`fill=["']${escapeRegex(wCode)}["']`, 'gi');
@@ -401,13 +424,6 @@ document.addEventListener('DOMContentLoaded', () => {
       origTargetList.forEach(tCode => {
         const re = new RegExp(escapeRegex(tCode), 'gi');
         customSvg = customSvg.replace(re, targetCountry);
-      });
-
-      // Target country glow gradient stop-color update
-      const origCapList = state.originalColors.capital_map || ["#D95F5F"];
-      origCapList.forEach(gCode => {
-        const re = new RegExp(`stop-color=["']${escapeRegex(gCode)}["']`, 'gi');
-        customSvg = customSvg.replace(re, `stop-color="${targetCountry}"`);
       });
 
       // Grid lines stroke replacement (#D8D8D8 -> gridLines)

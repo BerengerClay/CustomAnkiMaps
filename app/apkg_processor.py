@@ -36,7 +36,8 @@ ORIGINAL_SVG_COLORS = {
     "silhouette": ["#9CA3AF", "#9ca3af"],                        # Couleur originale de la forme du pays (Cartes silhouettes)
     "capital_map": ["#D95F5F", "#d95f5f"],                       # Couleur originale de la capitale (Vues cartes)
     "capital_silhouette": ["#D95F5F", "#d95f5f"],                # Couleur originale de l'épingle capitale (Vues silhouettes)
-    "grid_lines": ["#D8D8D8", "#d8d8d8"]                         # Couleur originale des lignes de quadrillage
+    "grid_lines": ["#D8D8D8", "#d8d8d8"],                        # Couleur originale des lignes de quadrillage
+    "zee_border": ["#D95F5F", "#d95f5f"]                         # Couleur originale des frontières ZEE (Zone Économique Exclusive)
 }
 
 # Couleurs par défaut proposées dans l'interface web (Classique Anki)
@@ -48,7 +49,8 @@ DEFAULT_COLOR_PALETTE = {
     "silhouette": "#CCCCCC",         # Couleur de la silhouette
     "capital_map": "#000000",        # Capitale (cartes)
     "capital_silhouette": "#000000", # Capitale (silhouettes)
-    "grid_lines": "#D8D8D8"          # Lignes de quadrillage (cartes)
+    "grid_lines": "#D8D8D8",         # Lignes de quadrillage (cartes)
+    "zee_border": "#D95F5F"          # Frontières maritimes (ZEE)
 }
 
 def ensure_svg_viewbox(svg_text: str) -> str:
@@ -77,6 +79,7 @@ def apply_color_transform(svg_text: str, colors: Dict[str, str], is_silhouette: 
     - capital_map: Capital pin on Globe & Zoomed maps
     - capital_silhouette: Capital pin marker on Silhouette+Capitale cards
     - grid_lines: Grid lines stroke on Globe & Zoomed maps
+    - zee_border: Maritime Exclusive Economic Zone (ZEE) dashed boundaries
     """
     svg_out = svg_text
 
@@ -92,13 +95,25 @@ def apply_color_transform(svg_text: str, colors: Dict[str, str], is_silhouette: 
 
     svg_out = re.sub(r'<path\b[^>]*transform=[\"\']translate[^>]*>', fix_capital_pin, svg_out, flags=re.IGNORECASE)
 
-    # 2. Water / Ocean background replacement
+    # 2. Target country glow gradient stop-color update (MUST happen before ZEE #D95F5F replacement)
+    target_val = colors.get("target_country", DEFAULT_COLOR_PALETTE["target_country"]).upper()
+    for g_code in ORIGINAL_SVG_COLORS["capital_map"]:
+        pattern = re.compile(rf'stop-color=[\"\']{re.escape(g_code)}[\"\']', re.IGNORECASE)
+        svg_out = pattern.sub(f'stop-color="{target_val}"', svg_out)
+
+    # 3. ZEE / Maritime Exclusive Economic Zone borders replacement (#D95F5F -> zee_border)
+    zee_val = colors.get("zee_border", DEFAULT_COLOR_PALETTE.get("zee_border", "#D95F5F")).upper()
+    for z_code in ORIGINAL_SVG_COLORS["zee_border"]:
+        pattern = re.compile(re.escape(z_code), re.IGNORECASE)
+        svg_out = pattern.sub(zee_val, svg_out)
+
+    # 4. Water / Ocean background replacement
     water_val = colors.get("water", DEFAULT_COLOR_PALETTE["water"]).upper()
     for w_code in ORIGINAL_SVG_COLORS["water"]:
         pattern = re.compile(rf'fill=[\"\']{re.escape(w_code)}[\"\']', re.IGNORECASE)
         svg_out = pattern.sub(f'fill="{water_val}"', svg_out)
 
-    # 3. Silhouette vs Map Land & Target handling
+    # 5. Silhouette vs Map Land & Target handling
     if is_silhouette:
         # Silhouette country shape fill -> silhouette color
         sil_val = colors.get("silhouette", DEFAULT_COLOR_PALETTE["silhouette"]).upper()
@@ -118,15 +133,9 @@ def apply_color_transform(svg_text: str, colors: Dict[str, str], is_silhouette: 
             svg_out = pattern.sub(f'fill="{other_val}"', svg_out)
 
         # Target country highlight fill (#59a353 -> target_country)
-        target_val = colors.get("target_country", DEFAULT_COLOR_PALETTE["target_country"]).upper()
         for t_code in ORIGINAL_SVG_COLORS["target_country"]:
             pattern = re.compile(re.escape(t_code), re.IGNORECASE)
             svg_out = pattern.sub(target_val, svg_out)
-
-        # Target country glow gradient stop-color update
-        for g_code in ORIGINAL_SVG_COLORS["capital_map"]:
-            pattern = re.compile(rf'stop-color=[\"\']{re.escape(g_code)}[\"\']', re.IGNORECASE)
-            svg_out = pattern.sub(f'stop-color="{target_val}"', svg_out)
 
         # Grid lines stroke replacement (#D8D8D8 -> grid_lines)
         grid_val = colors.get("grid_lines", DEFAULT_COLOR_PALETTE["grid_lines"]).upper()
