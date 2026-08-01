@@ -1,7 +1,8 @@
 import os
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Dict, Optional
 
@@ -22,33 +23,26 @@ app = FastAPI(
     version="1.2.0"
 )
 
-# Mount static files directory
+# Mount static files directory and set up Jinja2 templates
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+templates = Jinja2Templates(directory=static_dir)
 
 class ColorMapRequest(BaseModel):
     colors: Dict[str, str]
 
 @app.get("/", response_class=HTMLResponse)
-async def get_index():
-    index_path = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            html = f.read()
-
-        script_url = os.environ.get("UMAMI_SCRIPT_URL", "https://stats.beclay.fr/script.js").strip()
-        website_id = os.environ.get("UMAMI_WEBSITE_ID", "").strip()
-
-        if website_id:
-            umami_tag = f'<script defer src="{script_url}" data-website-id="{website_id}"></script>'
-            if "</head>" in html:
-                html = html.replace("</head>", f"  {umami_tag}\n</head>")
-            elif "</HEAD>" in html:
-                html = html.replace("</HEAD>", f"  {umami_tag}\n</HEAD>")
-
-        return HTMLResponse(content=html)
-    return HTMLResponse(content="<h1>Anki Customizer</h1><p>Index page loading...</p>")
+async def get_index(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "umami_script_url": os.environ.get("UMAMI_SCRIPT_URL", "https://stats.beclay.fr/script.js").strip(),
+            "umami_website_id": os.environ.get("UMAMI_WEBSITE_ID", "").strip(),
+        }
+    )
 
 @app.get("/api/defaults")
 async def get_defaults():

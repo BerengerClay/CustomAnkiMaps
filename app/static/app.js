@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Fetch sample maps for selected country
   async function fetchSamples(countryCode) {
     loadingSpinner.classList.remove('hidden');
-    previewStage.classList.add('hidden');
+    previewStage.classList.add('is-loading');
 
     try {
       const url = countryCode ? `/api/samples?country=${encodeURIComponent(countryCode)}` : '/api/samples';
@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.samples && data.samples.length > 0) {
         state.samples = data.samples;
         loadingSpinner.classList.add('hidden');
-        previewStage.classList.remove('hidden');
+        previewStage.classList.remove('is-loading');
         updatePreview();
       }
     } catch (err) {
@@ -324,6 +324,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!svgStr.includes('viewBox')) {
       svgStr = svgStr.replace(/<svg\b([^>]*)>/i, '<svg $1 viewBox="0 0 800 800" preserveAspectRatio="xMidYMid meet">');
     }
+    // Remove hardcoded width and height attributes from <svg> tag so CSS strictly governs size
+    svgStr = svgStr.replace(/<svg\b([^>]*)>/i, (match) => {
+      return match.replace(/\s(width|height)=["'][^"']*["']/gi, '');
+    });
     return svgStr;
   }
 

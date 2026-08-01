@@ -13,6 +13,10 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <link rel="stylesheet" href="/static/style.css">
+
+  {% if umami_website_id %}
+  <script defer src="{{ umami_script_url }}" data-website-id="{{ umami_website_id }}"></script>
+  {% endif %}
 </head>
 <body>
   <div class="background-glow glow-1"></div>
@@ -208,7 +212,7 @@
             <p>Chargement des cartes...</p>
           </div>
 
-          <div id="preview-stage" class="preview-stage hidden">
+          <div id="preview-stage" class="preview-stage">
             <!-- Customized View -->
             <div class="map-view-card" id="custom-map-card">
               <div class="svg-container" id="svg-custom-container"></div>
