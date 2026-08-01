@@ -33,7 +33,7 @@ ORIGINAL_SVG_COLORS = {
     "other_countries": ["#CCCCCC", "#CCC", "#cccccc", "#ccc"],      # Couleur originale des pays non sélectionnés (Terres / continents)
     "target_country": ["#59a353", "#59A353"],                    # Couleur originale du pays sélectionné (Surbrillance cartes)
     "country_borders": ["#FFFFFF", "#FFF", "#ffffff", "#fff"],     # Couleur originale des frontières des pays
-    "silhouette": ["#9CA3AF", "#9ca3af"],                        # Couleur originale de la forme du pays (Cartes silhouettes)
+    "silhouette": ["#CCCCCC", "#CCC", "#cccccc", "#ccc", "#9CA3AF", "#9ca3af"],                        # Couleur originale de la forme du pays (Cartes silhouettes)
     "capital_map": ["#D95F5F", "#d95f5f"],                       # Couleur originale de la capitale (Vues cartes)
     "capital_silhouette": ["#D95F5F", "#d95f5f"],                # Couleur originale de l'épingle capitale (Vues silhouettes)
     "grid_lines": ["#D8D8D8", "#d8d8d8"],                        # Couleur originale des lignes de quadrillage

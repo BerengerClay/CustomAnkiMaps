@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
       other_countries: ["#CCCCCC", "#CCC", "#cccccc", "#ccc"],
       target_country: ["#59a353", "#59A353"],
       country_borders: ["#FFFFFF", "#FFF", "#ffffff", "#fff"],
-      silhouette: ["#9CA3AF", "#9ca3af"],
+      silhouette: ["#CCCCCC", "#CCC", "#cccccc", "#ccc", "#9CA3AF", "#9ca3af"],
       capital_map: ["#D95F5F", "#d95f5f"],
       capital_silhouette: ["#D95F5F", "#d95f5f"],
       grid_lines: ["#D8D8D8", "#d8d8d8"],
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Silhouette vs Map Land & Target handling
     if (isSilhouetteTab) {
       // Silhouette country shape fill -> silhouette color
-      const origSilList = state.originalColors.silhouette || ["#9CA3AF"];
+      const origSilList = state.originalColors.silhouette || ["#CCCCCC", "#CCC", "#cccccc", "#ccc", "#9CA3AF"];
       origSilList.forEach(sCode => {
         const re = new RegExp(`fill=["']${escapeRegex(sCode)}["']`, 'gi');
         customSvg = customSvg.replace(re, `fill="${silhouette}"`);
