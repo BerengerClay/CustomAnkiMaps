@@ -179,6 +179,16 @@ document.addEventListener('DOMContentLoaded', () => {
     presetBtns.forEach(b => b.classList.toggle('active', b.dataset.preset === 'anki'));
   }
 
+  // Switch tab programmatically and sync tab buttons
+  function switchTab(tabId) {
+    if (!sampleTabs) return;
+    const tabBtns = sampleTabs.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+    state.activeTab = tabId;
+  }
+
   // Bind color pickers for INSTANT live rendering on input & change
   function setupColorPickers() {
     Object.keys(pickers).forEach(key => {
@@ -275,9 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabBtns = sampleTabs.querySelectorAll('.tab-btn');
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        tabBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.activeTab = btn.dataset.tab;
+        switchTab(btn.dataset.tab);
         updatePreview();
       });
     });
