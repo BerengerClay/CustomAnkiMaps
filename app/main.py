@@ -6,6 +6,11 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Dict, Optional
 
+import asyncio
+import json
+import uuid
+from fastapi.responses import StreamingResponse
+
 from app.apkg_processor import APKGProcessor, DEFAULT_COLOR_PALETTE, ORIGINAL_SVG_COLORS
 
 APKG_PATH = os.environ.get("APKG_PATH", "GeoQuiz.apkg")
@@ -67,10 +72,6 @@ async def get_samples(country: Optional[str] = Query(None, description="Code ISO
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur d'extraction des cartes: {str(e)}")
 
-import asyncio
-import json
-import uuid
-from fastapi.responses import HTMLResponse, Response, JSONResponse, StreamingResponse
 
 generated_jobs: Dict[str, bytes] = {}
 

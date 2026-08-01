@@ -1,5 +1,6 @@
 import os
 import unittest
+
 from app.apkg_processor import APKGProcessor, DEFAULT_COLOR_PALETTE, apply_color_transform
 
 try:
