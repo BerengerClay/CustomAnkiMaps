@@ -1,10 +1,12 @@
 import hashlib
 import io
+import json
 import os
 import re
 import sqlite3
 import tempfile
 import threading
+import time
 import zipfile
 import zstandard
 from concurrent.futures import ThreadPoolExecutor
@@ -14,27 +16,13 @@ from typing import Dict, List, Any, Optional, Callable
 # DICTIONNAIRE DES COULEURS SVG À REMPLACER ET COULEURS PAR DÉFAUT
 # ==============================================================================
 
-# Codes couleurs hexadécimaux originaux présents dans les SVG du paquet GeoQuiz.apkg :
-# - "water"              : #FFFFFF / #FFF (Océan / fond de carte)
-# - "other_countries"    : #CCCCCC / #CCC (Terres et pays voisins non sélectionnés)
-# - "target_country"     : #59a353 (Surbrillance du pays sélectionné sur cartes)
-# - "silhouette"         : #9CA3AF (Forme du pays sur cartes silhouettes)
-# - "capital_map"        : #D95F5F (Épingle capitale sur cartes globe et zoomées)
-# Codes couleurs hexadécimaux originaux présents dans les SVG du paquet GeoQuiz.apkg :
-# - "water"              : #FFFFFF / #FFF (Océan / fond de carte)
-# - "other_countries"    : #CCCCCC / #CCC (Terres et pays voisins non sélectionnés)
-# - "target_country"     : #59a353 (Surbrillance du pays sélectionné sur cartes)
-# - "country_borders"    : #FFFFFF / #FFF (Frontières des pays sur cartes)
-# - "silhouette"         : #9CA3AF (Forme du pays sur cartes silhouettes)
-# - "capital_map"        : #D95F5F (Épingle capitale sur cartes globe et zoomées)
-# - "capital_silhouette" : #D95F5F (Épingle capitale sur cartes silhouettes)
-# - "grid_lines"         : #D8D8D8 (Lignes de quadrillage sur cartes)
+# Codes couleurs hexadécimaux originaux présents dans les SVG du paquet GeoQuiz.apkg
 ORIGINAL_SVG_COLORS = {
     "water": ["#FFFFFF", "#FFF", "#ffffff", "#fff"],               # Couleur originale de l'eau (Océan / fond de carte)
     "other_countries": ["#CCCCCC", "#CCC", "#cccccc", "#ccc"],      # Couleur originale des pays non sélectionnés (Terres / continents)
     "target_country": ["#59a353", "#59A353"],                    # Couleur originale du pays sélectionné (Surbrillance cartes)
     "country_borders": ["#FFFFFF", "#FFF", "#ffffff", "#fff"],     # Couleur originale des frontières des pays
-    "silhouette": ["#CCCCCC", "#CCC", "#cccccc", "#ccc", "#9CA3AF", "#9ca3af"],                        # Couleur originale de la forme du pays (Cartes silhouettes)
+    "silhouette": ["#CCCCCC", "#CCC", "#cccccc", "#ccc", "#9CA3AF", "#9ca3af"], # Couleur originale de la forme du pays (Cartes silhouettes)
     "capital_map": ["#D95F5F", "#d95f5f"],                       # Couleur originale de la capitale (Vues cartes)
     "capital_silhouette": ["#D95F5F", "#d95f5f"],                # Couleur originale de l'épingle capitale (Vues silhouettes)
     "grid_lines": ["#D8D8D8", "#d8d8d8"],                        # Couleur originale des lignes de quadrillage
@@ -73,18 +61,16 @@ def ensure_svg_viewbox(svg_text: str) -> str:
         )
     return svg_text
 
+def is_map_svg(filename: str) -> bool:
+    """Vérifie strictement si le fichier SVG est une carte et NON un drapeau."""
+    if not filename or not filename.lower().endswith('.svg'):
+        return False
+    fname_lower = filename.lower()
+    return any(k in fname_lower for k in ['_zoomed_', '_globe_', '_silhouette_'])
+
 def apply_color_transform(svg_text: str, colors: Dict[str, str], is_silhouette: bool = False) -> str:
     """
-    Applies exact semantic color transforms matching ORIGINAL_SVG_COLORS dictionary mapping:
-    - water: Ocean / sea background fill
-    - other_countries: Non-selected countries on Globe & Zoomed maps
-    - target_country: Target country highlight on Globe & Zoomed maps
-    - country_borders: Country borders stroke on Globe & Zoomed maps
-    - silhouette: Country shape fill on Silhouette & Silhouette+Capitale cards
-    - capital_map: Capital pin on Globe & Zoomed maps
-    - capital_silhouette: Capital pin marker on Silhouette+Capitale cards
-    - grid_lines: Grid lines stroke on Globe & Zoomed maps
-    - zee_border: Maritime Exclusive Economic Zone (ZEE) dashed boundaries
+    Applies exact semantic color transforms matching ORIGINAL_SVG_COLORS dictionary mapping
     """
     svg_out = svg_text
 
@@ -100,7 +86,7 @@ def apply_color_transform(svg_text: str, colors: Dict[str, str], is_silhouette: 
 
     svg_out = re.sub(r'<path\b[^>]*transform=[\"\']translate[^>]*>', fix_capital_pin, svg_out, flags=re.IGNORECASE)
 
-    # 2. Target country glow gradient stop-color update (MUST happen before ZEE #D95F5F replacement)
+    # 2. Target country glow gradient stop-color update
     target_val = colors.get("target_country", DEFAULT_COLOR_PALETTE["target_country"]).upper()
     for g_code in ORIGINAL_SVG_COLORS["capital_map"]:
         pattern = re.compile(rf'stop-color=[\"\']{re.escape(g_code)}[\"\']', re.IGNORECASE)
@@ -165,9 +151,59 @@ def get_palette_hash(colors: Dict[str, str]) -> str:
     return hashlib.md5(hash_str.encode('utf-8')).hexdigest()[:8]
 
 def rename_svg_filename(fname: str, palette_hash: str) -> str:
-    """Rename an SVG media filename to append the unique palette hash."""
-    base = re.sub(r'_[0-9a-fA-F]{8}\.svg$', '.svg', fname, flags=re.IGNORECASE)
-    return re.sub(r'([A-Za-z0-9_\-]+)\.svg$', rf'\1_{palette_hash}.svg', base, flags=re.IGNORECASE)
+    """
+    Remplace les 8 derniers caractères par le hash de la palette
+    UNIQUEMENT pour les cartes SVG, pour conserver strictly la même longueur de nom.
+    """
+    if not is_map_svg(fname):
+        return fname
+
+    name_part = fname[:-4]  # Enlève '.svg'
+    hash_len = len(palette_hash)  # 8 caractères
+
+    if len(name_part) > hash_len:
+        new_name_part = name_part[:-hash_len] + palette_hash
+    else:
+        new_name_part = palette_hash[:len(name_part)]
+
+    return f"{new_name_part}.svg"
+
+def encode_anki_media_protobuf(media_dict: Dict[str, str]) -> bytes:
+    """
+    Encode un dictionnaire {zip_index: filename} au format Protobuf 'MediaEntries' d'Anki V3.
+    """
+    def write_varint(val: int) -> bytearray:
+        buf = bytearray()
+        while True:
+            tobw = val & 0x7f
+            val >>= 7
+            if val:
+                buf.append(tobw | 0x80)
+            else:
+                buf.append(tobw)
+                break
+        return buf
+
+    output = bytearray()
+    sorted_items = sorted(media_dict.items(), key=lambda x: int(x[0]))
+
+    for zip_id_str, filename in sorted_items:
+        zip_id = int(zip_id_str)
+        fname_bytes = filename.encode('utf-8')
+        
+        entry_bytes = bytearray()
+        entry_bytes.append(0x0A)
+        entry_bytes.extend(write_varint(len(fname_bytes)))
+        entry_bytes.extend(fname_bytes)
+        
+        entry_bytes.append(0x10)
+        entry_bytes.extend(write_varint(zip_id))
+        
+        output.append(0x0A)
+        output.extend(write_varint(len(entry_bytes)))
+        output.extend(entry_bytes)
+
+    return bytes(output)
 
 class APKGProcessor:
     def __init__(self, apkg_path: str):
@@ -175,12 +211,30 @@ class APKGProcessor:
         self._cached_countries = None
         self._filename_to_zip = None
 
+    def _get_media_raw_bytes(self, z: zipfile.ZipFile, dctx: zstandard.ZstdDecompressor) -> bytes:
+        """Extrait les octets bruts du fichier 'media' en gérant la compression zstd optionnelle."""
+        raw = z.read('media')
+        if len(raw) > 4 and raw[:4] == b'\x28\xb5\x2f\xfd':
+            return dctx.stream_reader(io.BytesIO(raw)).read()
+        return raw
+
     def _get_media_index(self, z: zipfile.ZipFile, dctx: zstandard.ZstdDecompressor) -> Dict[str, str]:
         """Build mapping of original filename -> numeric zip entry name."""
         if self._filename_to_zip is not None:
             return self._filename_to_zip
 
-        media_bytes = dctx.stream_reader(z.open('media')).read()
+        media_bytes = self._get_media_raw_bytes(z, dctx)
+
+        # 1. Essai de lecture au format JSON (généré par genanki)
+        try:
+            parsed_json = json.loads(media_bytes.decode('utf-8'))
+            mapping = {v: k for k, v in parsed_json.items()}
+            self._filename_to_zip = mapping
+            return mapping
+        except Exception:
+            pass
+
+        # 2. Essai de lecture binaire/regex (Anki V3 Protobuf ou texte)
         raw_str = media_bytes.decode('latin1', errors='ignore')
         entries = re.findall(r'([A-Za-z0-9_\-]+\.(?:svg|png|jpg))', raw_str)
         mapping = {}
@@ -190,16 +244,22 @@ class APKGProcessor:
         return mapping
 
     def get_countries(self) -> List[Dict[str, Any]]:
-        """Extract complete list of countries/territories from collection.anki21b."""
+        """Extract complete list of countries/territories from collection database."""
         if self._cached_countries:
             return self._cached_countries
 
         dctx = zstandard.ZstdDecompressor()
         with zipfile.ZipFile(self.apkg_path, 'r') as z:
-            anki21_bytes = dctx.stream_reader(z.open('collection.anki21b')).read()
+            db_key = 'collection.anki21b' if 'collection.anki21b' in z.namelist() else 'collection.anki2'
+            raw_db = z.read(db_key)
+
+            if len(raw_db) > 4 and raw_db[:4] == b'\x28\xb5\x2f\xfd':
+                db_bytes = dctx.stream_reader(io.BytesIO(raw_db)).read()
+            else:
+                db_bytes = raw_db
 
             with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as f:
-                f.write(anki21_bytes)
+                f.write(db_bytes)
                 tmp_path = f.name
 
             try:
@@ -284,8 +344,11 @@ class APKGProcessor:
                         raw_data = z.read(zip_name)
                         if len(raw_data) > 4 and raw_data[:4] == b'\x28\xb5\x2f\xfd':
                             decomp = dctx.stream_reader(io.BytesIO(raw_data)).read()
-                            if b'<svg' in decomp:
-                                svg_content = ensure_svg_viewbox(decomp.decode('utf-8', errors='ignore'))
+                        else:
+                            decomp = raw_data
+
+                        if b'<svg' in decomp:
+                            svg_content = ensure_svg_viewbox(decomp.decode('utf-8', errors='ignore'))
                     except Exception:
                         pass
 
@@ -304,7 +367,7 @@ class APKGProcessor:
 
     def process_and_repack(self, color_map: Dict[str, str], progress_callback: Optional[Callable[[int, int], None]] = None) -> bytes:
         """
-        Decompresses GeoQuiz.apkg, replaces colors in all SVG files according to color_map,
+        Decompresses GeoQuiz.apkg, replaces colors in map SVG files according to color_map,
         renames media files with a palette hash to force Anki refresh, and repacks into a new .apkg zip file.
         """
         output_buffer = io.BytesIO()
@@ -321,51 +384,90 @@ class APKGProcessor:
             total_files = len(infolist)
             file_data = {item.filename: z_in.read(item.filename) for item in infolist}
 
-        # Build filename rename mapping (orig_filename -> hashed_filename)
+        # Dictionnaire des nouveaux noms (Uniquement pour les cartes SVG, pas les drapeaux)
         rename_map = {
             orig_f: rename_svg_filename(orig_f, palette_hash)
             for orig_f in media_map.keys()
-            if orig_f.lower().endswith('.svg')
+            if is_map_svg(orig_f)
         }
 
-        # 1. Update SQLite database collection.anki21b note fields with new hashed filenames
-        if 'collection.anki21b' in file_data:
+        # 1. Mise à jour de la base de données SQLite (collection.anki21b ou collection.anki2)
+        db_key = 'collection.anki21b' if 'collection.anki21b' in file_data else ('collection.anki2' if 'collection.anki2' in file_data else None)
+
+        if db_key:
             try:
-                anki21_bytes = dctx.stream_reader(io.BytesIO(file_data['collection.anki21b'])).read()
+                raw_db = file_data[db_key]
+                if len(raw_db) > 4 and raw_db[:4] == b'\x28\xb5\x2f\xfd':
+                    db_bytes = dctx.stream_reader(io.BytesIO(raw_db)).read()
+                    is_db_compressed = True
+                else:
+                    db_bytes = raw_db
+                    is_db_compressed = False
+
                 with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as f:
-                    f.write(anki21_bytes)
+                    f.write(db_bytes)
                     tmp_db_path = f.name
 
                 conn = sqlite3.connect(tmp_db_path)
                 cursor = conn.cursor()
+                current_time = int(time.time())
+
                 for orig_f, new_f in rename_map.items():
                     if orig_f != new_f:
-                        cursor.execute('UPDATE notes SET flds = replace(flds, ?, ?)', (orig_f, new_f))
+                        cursor.execute(
+                            'UPDATE notes SET flds = replace(flds, ?, ?), mod = ? WHERE flds LIKE ?', 
+                            (orig_f, new_f, current_time, f'%{orig_f}%')
+                        )
+
                 conn.commit()
                 conn.close()
 
                 with open(tmp_db_path, 'rb') as f:
                     new_db_bytes = f.read()
 
-                file_data['collection.anki21b'] = cctx.compress(new_db_bytes)
-            except Exception:
-                pass
+                if is_db_compressed:
+                    file_data[db_key] = cctx.compress(new_db_bytes)
+                else:
+                    file_data[db_key] = new_db_bytes
+
+            except Exception as e:
+                print(f"❌ Erreur lors de la mise à jour SQLite : {e}", flush=True)
             finally:
                 if 'tmp_db_path' in locals() and os.path.exists(tmp_db_path):
                     os.remove(tmp_db_path)
 
-        # 2. Update media index entry to map numeric IDs to new hashed filenames
+        # 2. Mise à jour du fichier 'media'
         if 'media' in file_data:
             try:
-                media_bytes = dctx.stream_reader(io.BytesIO(file_data['media'])).read()
-                for orig_f, new_f in rename_map.items():
-                    if orig_f != new_f:
-                        media_bytes = media_bytes.replace(orig_f.encode('utf-8'), new_f.encode('utf-8'))
-                        media_bytes = media_bytes.replace(orig_f.encode('latin1'), new_f.encode('latin1'))
-                file_data['media'] = cctx.compress(media_bytes)
-            except Exception:
-                pass
+                raw_media = file_data['media']
+                is_media_compressed = len(raw_media) > 4 and raw_media[:4] == b'\x28\xb5\x2f\xfd'
 
+                if is_media_compressed:
+                    media_bytes = dctx.stream_reader(io.BytesIO(raw_media)).read()
+                else:
+                    media_bytes = raw_media
+
+                try:
+                    parsed_json = json.loads(media_bytes.decode('utf-8'))
+                    new_json = {}
+                    for zip_id, orig_f in parsed_json.items():
+                        new_json[zip_id] = rename_map.get(orig_f, orig_f)
+                    new_media_bytes = json.dumps(new_json).encode('utf-8')
+                except Exception:
+                    new_media_bytes = media_bytes
+                    for orig_f, new_f in rename_map.items():
+                        if orig_f != new_f:
+                            new_media_bytes = new_media_bytes.replace(orig_f.encode('utf-8'), new_f.encode('utf-8'))
+
+                if is_media_compressed:
+                    file_data['media'] = cctx.compress(new_media_bytes)
+                else:
+                    file_data['media'] = new_media_bytes
+
+            except Exception as e:
+                print(f"❌ Erreur lors de la mise à jour du fichier media : {e}", flush=True)
+
+        # 3. Traitement multithread des fichiers SVG
         completed_count = 0
         lock = threading.Lock()
 
@@ -374,20 +476,46 @@ class APKGProcessor:
             raw_data = file_data[item.filename]
             res_data = raw_data
 
-            if item.filename.isdigit() and len(raw_data) > 4 and raw_data[:4] == b'\x28\xb5\x2f\xfd':
+            orig_fname = zip_to_fname.get(item.filename, '')
+
+            # CONDITION STRICTE : Si ce n'est PAS une carte (ex: drapeau comme FRA.svg), on passe directement !
+            if not is_map_svg(orig_fname):
+                with lock:
+                    completed_count += 1
+                    if progress_callback:
+                        try:
+                            progress_callback(completed_count, total_files)
+                        except Exception:
+                            pass
+                return (item, res_data)
+
+            # Décompression si nécessaire
+            decompressed = None
+            was_compressed = False
+            if len(raw_data) > 4 and raw_data[:4] == b'\x28\xb5\x2f\xfd':
                 try:
                     local_dctx = zstandard.ZstdDecompressor()
-                    local_cctx = zstandard.ZstdCompressor()
                     decompressed = local_dctx.stream_reader(io.BytesIO(raw_data)).read()
-                    if b'<svg' in decompressed:
-                        svg_text = decompressed.decode('utf-8', errors='ignore')
-                        svg_text = ensure_svg_viewbox(svg_text)
+                    was_compressed = True
+                except Exception:
+                    pass
+            elif b'<svg' in raw_data:
+                decompressed = raw_data
+                was_compressed = False
 
-                        orig_fname = zip_to_fname.get(item.filename, '')
-                        is_silhouette = 'silhouette' in orig_fname.lower() or ('<path' in svg_text and '<rect' not in svg_text and '<circle' not in svg_text)
-                        svg_text = apply_color_transform(svg_text, color_map, is_silhouette=is_silhouette)
+            if decompressed and b'<svg' in decompressed:
+                try:
+                    local_cctx = zstandard.ZstdCompressor()
+                    svg_text = decompressed.decode('utf-8', errors='ignore')
+                    svg_text = ensure_svg_viewbox(svg_text)
 
+                    is_silhouette = 'silhouette' in orig_fname.lower()
+                    svg_text = apply_color_transform(svg_text, color_map, is_silhouette=is_silhouette)
+
+                    if was_compressed:
                         res_data = local_cctx.compress(svg_text.encode('utf-8'))
+                    else:
+                        res_data = svg_text.encode('utf-8')
                 except Exception:
                     pass
 
@@ -405,8 +533,16 @@ class APKGProcessor:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             results = list(executor.map(process_file, infolist))
 
+        # 4. Reconstruction du fichier ZIP final sans doublons
         with zipfile.ZipFile(output_buffer, 'w', zipfile.ZIP_DEFLATED) as z_out:
             for item, data in results:
-                z_out.writestr(item, data)
+                if item.filename != 'media' and item.filename != db_key:
+                    z_out.writestr(item, data)
+
+            if db_key and db_key in file_data:
+                z_out.writestr(db_key, file_data[db_key])
+
+            if 'media' in file_data:
+                z_out.writestr('media', file_data['media'])
 
         return output_buffer.getvalue()

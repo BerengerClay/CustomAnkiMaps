@@ -14,11 +14,9 @@ services:
       - web
     labels:
       - "traefik.enable=true"
-      # Remplacez custommaps.beclay.fr par votre domaine/sous-domaine souhaité
       - "traefik.http.routers.customankimaps.rule=Host(`custommaps.beclay.fr`)"
       - "traefik.http.routers.customankimaps.entrypoints=websecure"
       - "traefik.http.routers.customankimaps.tls.certresolver=le"
-      # FastAPI écoute sur le port 8000 dans le conteneur
       - "traefik.http.services.customankimaps.loadbalancer.server.port=8000"
 
 networks:

@@ -1,0 +1,18 @@
+services:
+  customankimaps:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: customankimaps_local
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./GeoQuiz.apkg:/app/GeoQuiz.apkg
+    environment:
+      - PORT=8000
+      - PYTHONUNBUFFERED=1
+      - UMAMI_SCRIPT_URL=
+      - UMAMI_WEBSITE_ID=
+    # Support du rechargement à chaud (hot-reload) lors des modifications de code
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
