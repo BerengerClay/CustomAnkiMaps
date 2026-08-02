@@ -8,8 +8,6 @@ services:
     restart: always
     environment:
       - PORT=8000
-      - UMAMI_SCRIPT_URL=${UMAMI_SCRIPT_URL:-https://stats.beclay.fr/script.js}
-      - UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}
     networks:
       - web
     labels:

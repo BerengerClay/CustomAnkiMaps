@@ -12,7 +12,5 @@ services:
     environment:
       - PORT=8000
       - PYTHONUNBUFFERED=1
-      - UMAMI_SCRIPT_URL=
-      - UMAMI_WEBSITE_ID=
     # Support du rechargement à chaud (hot-reload) lors des modifications de code
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

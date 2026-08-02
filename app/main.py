@@ -42,11 +42,7 @@ class ColorMapRequest(BaseModel):
 async def get_index(request: Request):
     return templates.TemplateResponse(
         request=request,
-        name="index.html",
-        context={
-            "umami_script_url": os.environ.get("UMAMI_SCRIPT_URL", "https://stats.beclay.fr/script.js").strip(),
-            "umami_website_id": os.environ.get("UMAMI_WEBSITE_ID", "").strip(),
-        }
+        name="index.html"
     )
 
 @app.get("/api/defaults")
