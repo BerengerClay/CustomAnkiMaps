@@ -1,6 +1,5 @@
 services:
   customankimaps:
-    build: .
     image: ghcr.io/beclay-vps/customankimaps:latest
     container_name: customankimaps
     ports:
