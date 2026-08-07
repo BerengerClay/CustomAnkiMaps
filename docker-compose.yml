@@ -2,8 +2,6 @@ services:
   customankimaps:
     image: ghcr.io/beclay-vps/customankimaps:latest
     container_name: customankimaps
-    ports:
-      - "8000:8000"
     restart: always
     environment:
       - PORT=8000
